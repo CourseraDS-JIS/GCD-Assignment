@@ -4,12 +4,44 @@ author: "Julie I. Santos"
 date: "Wednesday, March 18, 2015"
 output: html_document
 ---
+Code Book
+-------------
 
-From the instructions: The code should have a file run_analysis.R in the main directory that can be run as long as the Samsung data is in your working directory.  I chose to assume that the files were in the correct directory.
+The final data set contains 180 observations (30 participants x 6 activities) of 69 variables.  The first set of variables identify the individual, the activity, and the group to which she belonged.
+
+* subject: numeric identifier for subject ID
+* activity: factor with six levels: Walking, Walking upstairs, Walking downstairs, sitting, standing, and laying
+* groupID: numeric identifier for whether the individual belongs to the test or training data. 1: test, 2: train
+
+
+I chose to include the mean and standard deviation values from the main features only, excluding the calculated variables. 
+
+
+
+The description for the original variables is taken from the code book from the original data:
+
+
+>The features selected for this database come from the accelerometer and gyroscope 3-axial raw signals tAcc-XYZ and tGyro-XYZ. These time domain signals (prefix 't' to denote time) were captured at a constant rate of 50 Hz. Then they were filtered using a median filter and a 3rd order low pass Butterworth filter with a corner frequency of 20 Hz to remove noise. Similarly, the acceleration signal was then separated into body and gravity acceleration signals (tBodyAcc-XYZ and tGravityAcc-XYZ) using another low pass Butterworth filter with a corner frequency of 0.3 Hz. 
+>
+>Subsequently, the body linear acceleration and angular velocity were derived in time to obtain Jerk signals (tBodyAccJerk-XYZ and tBodyGyroJerk-XYZ). Also the magnitude of these three-dimensional signals were calculated using the Euclidean norm (tBodyAccMag, tGravityAccMag, tBodyAccJerkMag, tBodyGyroMag, tBodyGyroJerkMag). 
+>
+>Finally a Fast Fourier Transform (FFT) was applied to some of these signals producing fBodyAcc-XYZ, fBodyAccJerk-XYZ, fBodyGyro-XYZ, fBodyAccJerkMag, fBodyGyroMag, fBodyGyroJerkMag. (Note the 'f' to indicate frequency domain signals). 
+>
+>These signals were used to estimate variables of the feature vector for each pattern:  
+'-XYZ' is used to denote 3-axial signals in the X, Y and Z directions.
+
+The variables are then constructed as [measurement].[mean or std].[direction if exists].  For example, the fBodyAccJerk mean in X direction is coded as fBodyAccJerk.mean.X.  
+
+
+Analysis Description
+-----------------------
+
+
+From the instructions: The code should have a file run_analysis.R in the main directory that can be run as long as the Samsung data is in your working directory. I check to make sure that the appropriate files exist. 
 
 First, I read in the test data from the three files and bind them together with a factor variable called groupID that will help subsequent analysis determine whether the data came from the test or training group.
 
-```{r}
+```{r warning = FALSE, message=FALSE}
 library(dplyr)
 sub <- read.table("./test/subject_test.txt")
 x <- read.table("./test/X_test.txt")
@@ -47,11 +79,32 @@ I made a new column to translate the numeric *activity* variable to a factor wit
 data$activities <- factor(data$activity, labels=c("WALKING", "WALKING_UPSTAIRS","WALKING_DOWNSTAIRS","SITTING","STANDING","LAYING"))
 ```
 
-The function *make.names()* took the parentheses out of the column names and replaced them with periods.  From the 
-You can also embed plots, for example:
+The function *make.names()* took the parentheses out of the column names and replaced them with periods.  From the original codebook, the mean and std calculations have () after them.  I selected the columns that contain *mean..* and *std..* and then ordered them by name so that you can see the mean and standard deviation for each measurement side by side.
 
-```{r, echo=FALSE}
-plot(cars)
+```{r}
+data.analysis.mstd <- select(data, contains("mean..", ignore.case = TRUE),contains("std..", ignore.case = TRUE))
+data.analysis.mstd <- data.analysis.mstd[,order(names(data.analysis.mstd))]
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+I make the new data set from the *data.analysis.mstd* data frame combined with the data on activity, subject and group ID.
+
+```{r}
+ new.data <- cbind(subject =data$subject, activity=data$activities, groupID=data$groupID, data.analysis.mstd)
+```
+
+The next part of the code cleans up the variable names.  I remove double periods and one of the measurements has the word *Body* duplicated. I also removed the variable *tBodyAccJerkMeangravity.Mean* because it didn't satisfy my requirement that I only include the original measurements.
+
+```{r}
+new.data <- arrange(new.data, subject, activity)
+names(new.data) <- gsub("\\.\\.", "", names(new.data))
+names(new.data) <- gsub("BodyBody", "Body", names(new.data))
+names(new.data)[4] <- c("angle.tBodyAccJerkMeangravity.Mean")
+new.data <- select(new.data, -angle.tBodyAccJerkMeangravity.Mean)
+```
+
+Finally, I use the *summarise_each* function to take the average mean and std for each activity for each individual and then make a new file called HARdata.csv that contains the cleaned data set. 
+
+```{r}
+ data_d <- new.data %>% group_by(subject, activity) %>% summarise_each(funs(mean))
+ write.table(data_d, "HARdata.csv", sep=",", row.names=FALSE)
+```
