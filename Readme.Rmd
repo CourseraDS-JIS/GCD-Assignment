@@ -1,0 +1,57 @@
+---
+title: "Readme"
+author: "Julie I. Santos"
+date: "Wednesday, March 18, 2015"
+output: html_document
+---
+
+From the instructions: The code should have a file run_analysis.R in the main directory that can be run as long as the Samsung data is in your working directory.  I chose to assume that the files were in the correct directory.
+
+First, I read in the test data from the three files and bind them together with a factor variable called groupID that will help subsequent analysis determine whether the data came from the test or training group.
+
+```{r}
+library(dplyr)
+sub <- read.table("./test/subject_test.txt")
+x <- read.table("./test/X_test.txt")
+y <- read.table("./test/Y_test.txt")
+test <- cbind(sub,x,y, groupId = as.factor("TEST"))
+```
+
+Similarly with the training data:
+
+```{r}
+sub <- read.table("./train/subject_train.txt")
+x <- read.table("./train/X_train.txt")
+y <- read.table("./train/Y_train.txt")
+train <- cbind(sub,x,y, groupId = as.factor("TRAIN"))
+```
+
+I then combined the data with rbind
+```{r}
+data <- rbind(test,train)
+```
+
+The *features.txt* file contains most of the column names. However, it reads in with an index, so I grab the second column and combine it with the strings "subject", "activity", and "groupID" to get the column names.  Since the names in *features.txt* have parens, they won't make valid column names, so I use the function make.names().
+
+```{r}
+n <- read.table("features.txt")
+n <- as.character(n[,2])
+n <- c("subject",n, "activity","groupID")
+n <-  make.names(names=n, unique=TRUE, allow_ = TRUE)
+colnames(data) <- n
+```
+
+I made a new column to translate the numeric *activity* variable to a factor with six levels.
+
+```{r}
+data$activities <- factor(data$activity, labels=c("WALKING", "WALKING_UPSTAIRS","WALKING_DOWNSTAIRS","SITTING","STANDING","LAYING"))
+```
+
+The function *make.names()* took the parentheses out of the column names and replaced them with periods.  From the 
+You can also embed plots, for example:
+
+```{r, echo=FALSE}
+plot(cars)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
